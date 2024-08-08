@@ -46,7 +46,7 @@ class RobotController(Node):
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.actor = Actor(24, 2).to(self.device)
-        self.actor.load_state_dict(torch.load('actor.pth', map_location=self.device))
+        self.actor.load_state_dict(torch.load('TD3_velodyne_actor.pth', map_location=self.device))
         self.actor.eval()
         
         self.laser_subscriber = self.create_subscription(LaserScan, '/scan', self.laser_callback, 10)
