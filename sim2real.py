@@ -64,8 +64,12 @@ class RobotController(Node):
         
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
 
+        print(f"\nstate tensor: {state_tensor}\n")
+
         with torch.no_grad():
             action = self.actor(state_tensor).squeeze().cpu().numpy()
+
+        print(f"\naction taken: {action}\n")
 
         twist = Twist()
         twist.linear.x = float(action[0])
