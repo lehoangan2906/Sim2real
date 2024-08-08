@@ -107,6 +107,9 @@ class RobotController(Node):
             return
         
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
+        
+        # print out the state tensor to check the input
+        print(f"\nstate tensor: {state_tensor}\n")
 
         # Predict action using the actor model
         with torch.no_grad():
