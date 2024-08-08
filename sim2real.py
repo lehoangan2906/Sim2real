@@ -108,12 +108,11 @@ class RobotController(Node):
         
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
         
-        # print out the state tensor to check the input
-        print(f"\nstate tensor: {state_tensor}\n")
-
         # Predict action using the actor model
         with torch.no_grad():
             action = self.actor.get_action(state_tensor)
+
+        print(f"\nThe action taken: {action}\n")
 
         # Scale actions to desired ranges
         action[0] = ((action[0] + 1) / 2) * 0.4  # Scale action[0] to [0, 0.4]
