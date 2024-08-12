@@ -93,7 +93,7 @@ class RobotController(Node):
 
         # Action clipping to ensure safe operation
         linear_vel = np.clip(action[0], 0.0, 0.4)  # Example range for linear velocity
-        angular_vel = np.clip(action[1], -0.6, 0.6)  # Example range for angular velocity
+        angular_vel = np.clip(action[1], -0.0, 0.0)  # Example range for angular velocity
         
         if not self.emergency_stop:
             twist = Twist()
