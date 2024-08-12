@@ -137,6 +137,7 @@ class RobotController(Node):
         twist.angular.z = 0.0
         self.cmd_vel_publisher.publish(twist)
 
+    # To activate the emergency stop functionality, simply run: ros2 topic pub /emergency_stop std_msgs/msg/Bool "data: true"
     def emergency_stop_callback(self, msg):
         """Handle emergency stop signal."""
         self.emergency_stop = msg.data
