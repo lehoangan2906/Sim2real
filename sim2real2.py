@@ -122,12 +122,12 @@ class RobotController(Node):
         # Publish the actions to the cmd_vel topic
         if not self.emergency_stop:
             twist = Twist()
-            twist.linear.x = floar(linear_vel)
+            twist.linear.x = float(linear_vel)
             twist.angular.z = float(angular_vel)
             self.cmd_vel_publisher.publish(twist)
 
         # Update the previous action and publish laser markers for visualization
-        self.previous_action = [float(linear_vel), floar(angular_vel)]
+        self.previous_action = [float(linear_vel), float(angular_vel)]
         self.publish_laser_markers(min_laser)
 
     def safe_stop(self):
