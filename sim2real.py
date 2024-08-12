@@ -33,9 +33,9 @@ class RobotController(Node):
         
         # Parameters for the robot's goal and control behavior
         self.declare_parameter('goal_x', -1.0)
-        self.declare_parameter('goal_y', 0.0)
-        self.declare_parameter('GOAL_REACHED_DIST', 0.3)
-        self.declare_parameter('COLLISION_DIST_THRESHOLD', 0.2)  # Add the collision distance threshold
+        self.declare_parameter('goal_y', 0.5)
+        self.declare_parameter('GOAL_REACHED_DIST', 0.1)
+        self.declare_parameter('COLLISION_DIST_THRESHOLD', 0.1)  # Add the collision distance threshold
 
         self.goal_x = self.get_parameter('goal_x').get_parameter_value().double_value
         self.goal_y = self.get_parameter('goal_y').get_parameter_value().double_value
