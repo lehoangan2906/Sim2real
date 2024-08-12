@@ -101,6 +101,10 @@ class RobotController(Node):
             twist.angular.z = float(angular_vel)
             self.cmd_vel_publisher.publish(twist)
 
+        # Print the current action and distance to the goal
+        print(f"Current Action: Linear Velocity = {linear_vel:.2f}, Angular Velocity = {angular_vel:.2f}")
+        print(f"Distance to Goal: {self.distance:.2f} meters")
+
         # Update previous action and publish laser markers for visualization
         self.previous_action = [float(linear_vel), float(angular_vel)]
         self.publish_laser_markers(min_laser)
