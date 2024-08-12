@@ -58,7 +58,7 @@ class RobotController(Node):
         self.odom_subscriber = self.create_subscription(Odometry, '/odom', self.odom_callback, 10)
         self.cmd_vel_publisher = self.create_publisher(Twist, '/cmd_vel', 10)
         self.marker_publisher = self.create_publisher(Marker, '/laser_markers', 10)
-        self.emergency_stop_sub = self.create_subscription(Bool, '/emergency_stop', self.emergency_stop_callback, 10)
+        self.emergency_stop_sub = self.create_subscription(bool, '/emergency_stop', self.emergency_stop_callback, 10)
 
         # EMA parameters
         self.ema_alpha = 0.2 # smoothing factor
