@@ -110,7 +110,7 @@ class RobotController(Node):
             return
 
         # Convert state to tensor and predict action
-        state_tensor = torch.tensor(state, dtype=torch.float32).unsqueez(0).to(self.device)
+        state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
 
         with torch.no_grad():
             action = self.actor(state_tensor).squeeze().cpu().numpy()
