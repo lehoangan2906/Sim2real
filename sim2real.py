@@ -32,9 +32,9 @@ class RobotController(Node):
         super().__init__('robot_controller')
         
         # Parameters for the robot's goal and control behavior
-        self.declare_parameter('goal_x', -1.0)
-        self.declare_parameter('goal_y', 0.5)
-        self.declare_parameter('GOAL_REACHED_DIST', 0.1)
+        self.declare_parameter('goal_x', 1.5)
+        self.declare_parameter('goal_y', 5.0)
+        self.declare_parameter('GOAL_REACHED_DIST', 0.2)
         self.declare_parameter('COLLISION_DIST_THRESHOLD', 0.1)  # Add the collision distance threshold
 
         self.goal_x = self.get_parameter('goal_x').get_parameter_value().double_value
@@ -191,7 +191,7 @@ class RobotController(Node):
             beta = -beta if skew_x < 0 else -beta
         theta = beta - self.angle
         self.theta = (theta + np.pi) % (2 * np.pi) - np.pi
-
+        
     def update_model(self, new_model_path):
         """Update the model with a new set of parameters."""
         self.actor.load_state_dict(torch.load(new_model_path, map_location=self.device))
