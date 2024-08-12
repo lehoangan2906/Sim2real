@@ -50,7 +50,7 @@ class RobotController(Node):
         # Load the neural network model
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.actor = Actor(24, 2).to(self.device)
-        self.actor_load_state_dict(torch.load('TD3_velodyne_actor.pth', map_location = self.device))
+        self.actor.load_state_dict(torch.load('TD3_velodyne_actor.pth', map_location = self.device))
         self.actor.eval()
 
         # ROS2 Subscription and Publishers
