@@ -72,10 +72,10 @@ class RobotController(Node):
         min_laser = self.process_lidar_data(msg.ranges)
         
         # Check for collision risk
-        if any(dist < self.COLLISION_DIST_THRESHOLD for dist in min_laser):
-            self.get_logger().warn("Obstacle detected within collision distance threshold!")
-            self.safe_stop()  # Stop the robot if an obstacle is too close
-            return
+#        if any(dist < self.COLLISION_DIST_THRESHOLD for dist in min_laser):
+#            self.get_logger().warn("Obstacle detected within collision distance threshold!")
+#            self.safe_stop()  # Stop the robot if an obstacle is too close
+#            return
         
         # Update state vector
         state = min_laser + [self.distance, self.theta] + self.previous_action
@@ -92,13 +92,16 @@ class RobotController(Node):
             action = self.actor(state_tensor).squeeze().cpu().numpy()
 
         # Action clipping to ensure safe operation
-        linear_vel = np.clip(action[0], 0.0, 0.5)  # Example range for linear velocity
-        angular_vel = np.clip(action[1], -0.6, 0.6)  # Example range for angular velocity
-        
+        linear_vel = np.clip((action[0] + 1.0) / 2.0 * 0.4, 0.0, 0.4)  # Example range for linear velocity
+        angular_vel = np.clip(action[1], -1.0, 1.0)  # Example range for angular velocity
+ 
+        #linear_vel = 0.4
+        #angular_vel = 0.0
         if not self.emergency_stop:
             twist = Twist()
             twist.linear.x = float(linear_vel)
             twist.angular.z = float(angular_vel)
+            print(f"Publishing Twist commands: Linear {twist.linear.x}, Angular = {twist.angular.z}")
             self.cmd_vel_publisher.publish(twist)
 
         # Print the current action and distance to the goal
