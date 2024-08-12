@@ -33,8 +33,8 @@ class RobotController(Node):
         super().__init__('robot_controller')
 
         # Parameters for the robot's goal and control behavior
-        self.declare_parameter('goal_x', 1.0)
-        self.declare_parameter('goal_y', 1.0)
+        self.declare_parameter('goal_x', 3.0)
+        self.declare_parameter('goal_y', 3.0)
         self.declare_parameter('GOAL_REACHED_DIST', 0.15)
 
         self.goal_x = self.get_parameter('goal_x').get_parameter_value().double_value
