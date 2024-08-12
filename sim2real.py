@@ -72,10 +72,10 @@ class RobotController(Node):
         min_laser = self.process_lidar_data(msg.ranges)
         
         # Check for collision risk
-#        if any(dist < self.COLLISION_DIST_THRESHOLD for dist in min_laser):
-#            self.get_logger().warn("Obstacle detected within collision distance threshold!")
-#            self.safe_stop()  # Stop the robot if an obstacle is too close
-#            return
+        if any(dist < self.COLLISION_DIST_THRESHOLD for dist in min_laser):
+            self.get_logger().warn("Obstacle detected within collision distance threshold!")
+            self.safe_stop()  # Stop the robot if an obstacle is too close
+            return
         
         # Update state vector
         state = min_laser + [self.distance, self.theta] + self.previous_action
@@ -91,8 +91,11 @@ class RobotController(Node):
         with torch.no_grad():
             action = self.actor(state_tensor).squeeze().cpu().numpy()
 
+        # print raw output from the network
+        print(f"Raw Action Output from Network: Linear = {action[0]:.4f}, Angular = {action[1]:.4f}")
         # Action clipping to ensure safe operation
-        linear_vel = np.clip((action[0] + 1.0) / 2.0 * 0.4, 0.0, 0.4)  # Example range for linear velocity
+        action[0] = np.abs(action[0])
+        linear_vel = np.clip(action[0], 0.0, 0.4)  # Example range for linear velocity
         angular_vel = np.clip(action[1], -1.0, 1.0)  # Example range for angular velocity
  
         #linear_vel = 0.4
@@ -101,7 +104,6 @@ class RobotController(Node):
             twist = Twist()
             twist.linear.x = float(linear_vel)
             twist.angular.z = float(angular_vel)
-            print(f"Publishing Twist commands: Linear {twist.linear.x}, Angular = {twist.angular.z}")
             self.cmd_vel_publisher.publish(twist)
 
         # Print the current action and distance to the goal
@@ -170,6 +172,11 @@ class RobotController(Node):
         marker.color.b = 0.0
 
         for i, distance in enumerate(min_laser):
+            # Replace infinite or NaN values in distance readings
+            if np.isinf(distance) or np.isnan(distance):
+                print(f"Invalid distance value detected: {distance}")
+                distance = 12.0
+
             angle = (i * np.pi / 10)  
             x = distance * np.cos(angle)
             y = distance * np.sin(angle)
