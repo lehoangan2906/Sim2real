@@ -27,19 +27,20 @@ class Actor(nn.Module):
         return a
 
 
-# Define the Robot controller node
 class RobotController(Node):
-    def __init__ (self):
+    def __init__(self):
         super().__init__('robot_controller')
-
+        
         # Parameters for the robot's goal and control behavior
-        self.declare_parameter('goal_x', -5.0)
-        self.declare_parameter('goal_y', 5.0)
-        self.declare_parameter('GOAL_REACHED_DIST', 0.15)
+        self.declare_parameter('goal_x', 1.0)
+        self.declare_parameter('goal_y', 1.0)
+        self.declare_parameter('GOAL_REACHED_DIST', 0.1)
+        self.declare_parameter('COLLISION_DIST_THRESHOLD', 0.5)  # Add the collision distance threshold
 
         self.goal_x = self.get_parameter('goal_x').get_parameter_value().double_value
         self.goal_y = self.get_parameter('goal_y').get_parameter_value().double_value
         self.GOAL_REACHED_DIST = self.get_parameter('GOAL_REACHED_DIST').get_parameter_value().double_value
+        self.COLLISION_DIST_THRESHOLD = self.get_parameter('COLLISION_DIST_THRESHOLD').get_parameter_value().double_value
 
         # Initial values
         self.previous_action = [0.0, 0.0]
@@ -51,10 +52,10 @@ class RobotController(Node):
         # Load the neural network model
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.actor = Actor(24, 2).to(self.device)
-        self.actor.load_state_dict(torch.load('TD3_velodyne_actor.pth', map_location = self.device))
+        self.actor.load_state_dict(torch.load('TD3_velodyne_actor.pth', map_location=self.device))
         self.actor.eval()
-
-        # ROS2 Subscription and Publishers
+        
+        # ROS2 subscriptions and publishers
         self.laser_subscriber = self.create_subscription(LaserScan, '/scan', self.laser_callback, 10)
         self.odom_subscriber = self.create_subscription(Odometry, '/odom', self.odom_callback, 10)
         self.cmd_vel_publisher = self.create_publisher(Twist, '/cmd_vel', 10)
@@ -62,15 +63,52 @@ class RobotController(Node):
         self.emergency_stop_sub = self.create_subscription(Bool, '/emergency_stop', self.emergency_stop_callback, 10)
 
         # EMA parameters
-        self.ema_alpha = 0.2 # smoothing factor
-        self.previous_ema = [12.0] * 20 # initial EMA values (maximum range of the lidar)
-        self.emergency_stop = False # track emergency stop status
+        self.ema_alpha = 0.2  # Smoothing factor for EMA
+        self.previous_ema = [12.0] * 20  # Initial EMA values (fallback to max range)
+        self.emergency_stop = False  # Track emergency stop status
 
+    def laser_callback(self, msg):
+        # Process laser scan data using EMA and combined strategy
+        min_laser = self.process_lidar_data(msg.ranges)
+        
+        # Check for collision risk
+        if any(dist < self.COLLISION_DIST_THRESHOLD for dist in min_laser):
+            self.get_logger().warn("Obstacle detected within collision distance threshold!")
+            self.safe_stop()  # Stop the robot if an obstacle is too close
+            return
+        
+        # Update state vector
+        state = min_laser + [self.distance, self.theta] + self.previous_action
+        
+        # State validation and error handling
+        if len(state) != 24:
+            self.get_logger().error(f"Unexpected state vector length: {len(state)}")
+            self.safe_stop()  # Stop the robot if state vector is incorrect
+            return
+        
+        # Convert state to tensor and predict action
+        state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
+        with torch.no_grad():
+            action = self.actor(state_tensor).squeeze().cpu().numpy()
+
+        # Action clipping to ensure safe operation
+        linear_vel = np.clip(action[0], 0.0, 0.4)  # Example range for linear velocity
+        angular_vel = np.clip(action[1], -0.6, 0.6)  # Example range for angular velocity
+        
+        if not self.emergency_stop:
+            twist = Twist()
+            twist.linear.x = float(linear_vel)
+            twist.angular.z = float(angular_vel)
+            self.cmd_vel_publisher.publish(twist)
+
+        # Update previous action and publish laser markers for visualization
+        self.previous_action = [float(linear_vel), float(angular_vel)]
+        self.publish_laser_markers(min_laser)
 
     def process_lidar_data(self, ranges):
-        """ Process LiDAR data using Exponential Moving Average to reduce noise."""
-        num_gaps = 20 # Number of gaps we want to split the FOV into
-        gap_size = len(ranges) // num_gaps # Calculate the size of each gap
+        """Process LiDAR data by combining Min Value and EMA to improve obstacle detection."""
+        num_gaps = 20  # Number of gaps we want to split the FOV into
+        gap_size = len(ranges) // num_gaps  # Calculate the size of each gap
 
         processed_data = []
         for i in range(num_gaps):
@@ -78,57 +116,21 @@ class RobotController(Node):
             gap_end = (i + 1) * gap_size
             gap_data = ranges[gap_start:gap_end]
 
-            # Finding the minimum data in each gap
-            if len(gap_data) > 0: # check whether the gap contains any data
+            if len(gap_data) > 0:
                 current_min = min(gap_data)
-            else: # if the gap is empty, it assigns a fallback value represents the scenario where no valid data is found in the gap.
-                current_min = 12.0
+            else:
+                current_min = 12.0  # Fallback value if gap_data is empty
 
             # Calculate the EMA for this gap
             ema_value = self.ema_alpha * current_min + (1 - self.ema_alpha) * self.previous_ema[i]
-
+            
             # Combine the Min Value and EMA Value
-            combined_value = min(current_min, ema_value)
+            combined_value = min(current_min, ema_value)  # Use the minimum of both as the combined value
 
-            processed_data.append(ema_value)
-            self.previous_ema[i] = ema_value # Update the previous EMA for next iteration
+            processed_data.append(combined_value)
+            self.previous_ema[i] = ema_value  # Update the previous EMA for the next iteration
 
         return processed_data
-
-
-    def laser_callback(self, msg):
-        # Process laser scan data using EMA
-        min_laser = self.process_lidar_data(msg.ranges)
-
-        # Update state vector
-        state = min_laser  + [self.distance, self.theta] + self.previous_action
-
-        # State validation and error handling
-        if len(state) != 24:
-            self.get_logger().error(f"Unexpected state vector length: {len(state)}")
-            self.safe_stop() # stop the robot if state vector is incorrect
-            return
-
-        # Convert state to tensor and predict action
-        state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
-
-        with torch.no_grad():
-            action = self.actor(state_tensor).squeeze().cpu().numpy()
-
-        # Action clipping to ensure safe operation
-        linear_vel = np.clip(action[0], 0.0, 0.4)
-        angular_vel = np.clip(action[1], -0.6, 0.6)
-
-        # Publish the actions to the cmd_vel topic
-        if not self.emergency_stop:
-            twist = Twist()
-            twist.linear.x = float(linear_vel)
-            twist.angular.z = float(angular_vel)
-            self.cmd_vel_publisher.publish(twist)
-
-        # Update the previous action and publish laser markers for visualization
-        self.previous_action = [float(linear_vel), float(angular_vel)]
-        self.publish_laser_markers(min_laser)
 
     def safe_stop(self):
         """Stop the robot by publishing zero velocities."""
@@ -137,10 +139,9 @@ class RobotController(Node):
         twist.angular.z = 0.0
         self.cmd_vel_publisher.publish(twist)
 
-    # To activate the emergency stop functionality, simply run: ros2 topic pub /emergency_stop std_msgs/msg/Bool "data: true"
     def emergency_stop_callback(self, msg):
         """Handle emergency stop signal."""
-        self.emergency_stop = msg.data
+        self.emergency_stop = msg.data  # msg.data will be True or False
         if self.emergency_stop:
             self.safe_stop()
 
