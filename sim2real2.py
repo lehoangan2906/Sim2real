@@ -38,7 +38,7 @@ class RobotController(Node):
 
         self.goal_x = self.get_parameter('goal_x').get_parameter_value().double_value
         self.goal_y = self.get_parameter('goal_y').get_parameter_value().double_value
-        self.GOAL_REACHED_DIST = self.get_parameter()'GOAL_REACHED_DIST').get_parameter_value().double_value
+        self.GOAL_REACHED_DIST = self.get_parameter('GOAL_REACHED_DIST').get_parameter_value().double_value
 
         # Initial values
         self.previous_action = [0.0, 0.0]
